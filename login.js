@@ -56,7 +56,7 @@ loginForm.addEventListener('submit', (e) => {
     
     auth.signInWithEmailAndPassword(email, password)
         .then(() => {
-            window.location.href = 'index.html';
+            window.location.href = 'index';
         })
         .catch(error => {
             const errorMsg = customErrors[error.code] || customErrors.default;
@@ -72,7 +72,7 @@ registerForm.addEventListener('submit', (e) => {
     
     auth.createUserWithEmailAndPassword(email, password)
         .then(() => {
-            window.location.href = 'index.html';
+            window.location.href = 'index';
         })
         .catch(error => {
             const errorMsg = customErrors[error.code] || customErrors.default;
@@ -83,6 +83,6 @@ registerForm.addEventListener('submit', (e) => {
 // Check if user is already logged in
 auth.onAuthStateChanged(user => {
     if (user) {
-        window.location.href = 'index.html';
+        window.location.href = 'index';
     }
 });
