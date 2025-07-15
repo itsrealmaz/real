@@ -13,76 +13,127 @@ const app = firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 
 // DOM elements
-const tabs = document.querySelectorAll('.tab');
-const loginForm = document.getElementById('login-form');
-const registerForm = document.getElementById('register-form');
-const loginError = document.getElementById('login-error');
-const registerError = document.getElementById('register-error');
+const userEmailEl = document.getElementById('user-email');
+const logoutBtn = document.getElementById('logout-btn');
+const chatMessages = document.getElementById('chat-messages');
+const messageInput = document.getElementById('message-input');
+const sendBtn = document.getElementById('send-btn');
 
-// Custom error messages
-const customErrors = {
-    "auth/invalid-login-credentials": "MAZ error: Invalid login credentials",
-    "auth/user-not-found": "MAZ error: User not found",
-    "auth/wrong-password": "MAZ error: Incorrect password",
-    "auth/email-already-in-use": "MAZ error: Email already in use",
-    "auth/weak-password": "MAZ error: Password too weak (min 6 characters)",
-    "auth/invalid-email": "MAZ error: Invalid email address",
-    "default": "MAZ error: Authentication failed"
-};
+// Google Gemini API Key
+const GEMINI_API_KEY = "AIzaSyCa4oS6AnLLRZJsC3HBIvEeAwzYRhGdUg4";
 
-// Tab switching
-tabs.forEach(tab => {
-    tab.addEventListener('click', () => {
-        tabs.forEach(t => t.classList.remove('active'));
-        tab.classList.add('active');
-        
-        if (tab.dataset.tab === 'login') {
-            loginForm.style.display = 'block';
-            registerForm.style.display = 'none';
-            loginError.textContent = '';
-        } else {
-            loginForm.style.display = 'none';
-            registerForm.style.display = 'block';
-            registerError.textContent = '';
-        }
+// Check authentication state
+auth.onAuthStateChanged(user => {
+    if (!user) {
+        window.location.href = 'login.html';
+    } else {
+        userEmailEl.textContent = user.email;
+    }
+});
+
+// Logout handler
+logoutBtn.addEventListener('click', () => {
+    auth.signOut().then(() => {
+        window.location.href = 'login.html';
     });
 });
 
-// Login handler
-loginForm.addEventListener('submit', (e) => {
-    e.preventDefault();
-    const email = document.getElementById('login-email').value;
-    const password = document.getElementById('login-password').value;
-    
-    auth.signInWithEmailAndPassword(email, password)
-        .then(() => {
-            window.location.href = 'index.html';
-        })
-        .catch(error => {
-            const errorMsg = customErrors[error.code] || customErrors.default;
-            loginError.textContent = errorMsg;
-        });
-});
-
-// Register handler
-registerForm.addEventListener('submit', (e) => {
-    e.preventDefault();
-    const email = document.getElementById('register-email').value;
-    const password = document.getElementById('register-password').value;
-    
-    auth.createUserWithEmailAndPassword(email, password)
-        .then(() => {
-            window.location.href = 'index.html';
-        })
-        .catch(error => {
-            const errorMsg = customErrors[error.code] || customErrors.default;
-            registerError.textContent = errorMsg;
-        });
-});
-
-// Check if user is already logged in
-auth.onAuthStateChanged(user => {
-    if (user) {
-        window.location.href = 'index.html';
+// Send message handler
+sendBtn.addEventListener('click', sendMessage);
+messageInput.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendMessage();
     }
 });
+
+// Send message function
+async function sendMessage() {
+    const message = messageInput.value.trim();
+    if (!message) return;
+    
+    // Add user message
+    addMessage(message, 'user');
+    messageInput.value = '';
+    messageInput.style.height = '60px'; // Reset height
+    
+    try {
+        // Show loading indicator
+        const loadingMsg = addMessage("Thinking...", 'ai', true);
+        
+        // Get API response
+        const aiResponse = await fetchGeminiResponse(message);
+        
+        // Replace loading message with actual response
+        chatMessages.removeChild(loadingMsg);
+        addMessage(aiResponse, 'ai');
+    } catch (error) {
+        addMessage("MAZ error: Connection issue. Please try again later.", 'ai');
+        console.error('API Error:', error);
+    }
+}
+
+// Add message to chat
+function addMessage(content, sender, isLoading = false) {
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `message ${sender}-message`;
+    
+    messageDiv.innerHTML = `
+        <div class="avatar">
+            ${sender === 'user' 
+                ? '<i class="fas fa-user"></i>' 
+                : '<i class="fas fa-robot"></i>'}
+        </div>
+        <div class="content">
+            <div class="text">${isLoading ? '<i class="fas fa-spinner fa-spin"></i> ' + content : content}</div>
+        </div>
+    `;
+    
+    chatMessages.appendChild(messageDiv);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+    return messageDiv;
+}
+
+// Auto-resize textarea
+messageInput.addEventListener('input', function() {
+    this.style.height = 'auto';
+    this.style.height = (this.scrollHeight > 150 ? 150 : this.scrollHeight) + 'px';
+});
+
+// Fetch Gemini response
+async function fetchGeminiResponse(userMessage) {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
+    
+    const response = await fetch(url, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+            contents: [{
+                role: "user",
+                parts: [{
+                    text: userMessage
+                }]
+            }],
+            generationConfig: {
+                temperature: 0.7,
+                maxOutputTokens: 1024
+            }
+        })
+    });
+
+    if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(`MAZ error: Gemini API responded with status ${response.status}: ${errorData.error?.message || 'Unknown error'}`);
+    }
+
+    const data = await response.json();
+    
+    // Extract the AI response text
+    if (data.candidates && data.candidates.length > 0) {
+        return data.candidates[0].content.parts[0].text;
+    }
+    
+    throw new Error("MAZ error: No response from AI");
+}
