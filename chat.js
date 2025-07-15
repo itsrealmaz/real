@@ -22,7 +22,7 @@ const sendBtn = document.getElementById('send-btn');
 // Check authentication state
 auth.onAuthStateChanged(user => {
     if (!user) {
-        window.location.href = 'login.html';
+        window.location.href = 'login';
     } else {
         userEmailEl.textContent = user.email;
     }
@@ -31,7 +31,7 @@ auth.onAuthStateChanged(user => {
 // Logout handler
 logoutBtn.addEventListener('click', () => {
     auth.signOut().then(() => {
-        window.location.href = 'login.html';
+        window.location.href = 'login';
     });
 });
 
