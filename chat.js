@@ -99,7 +99,7 @@ messageInput.addEventListener('input', function() {
 
 // Fetch AI response
 async function fetchAIResponse(userMessage) {
-    const apiKey = "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";
+    const apiKey = "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";
     const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
         method: "POST",
         headers: {
@@ -109,7 +109,7 @@ async function fetchAIResponse(userMessage) {
             "Content-Type": "application/json"
         },
         body: JSON.stringify({
-            "model": "deepseek/deepseek-chat-v3-0324:free",
+            "model": "deepseek/deepseek-r1-0528:free",
             "messages": [
                 {
                     "role": "user",
